@@ -1,39 +1,53 @@
-#include <Time.h>
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_PCD8544.h>
+#include <Time.h>
 #include <SPI.h>
 #include <MFRC522.h>
+
+#include "impressora.h"
 
 #define RST_PIN		9		// 
 #define SS_PIN		10		//
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);	// Create MFRC522 instance
 
+// pin 3 - Serial clock out (SCLK)
+// pin 4 - Serial data out (DIN)
+// pin 5 - Data/Command select (D/C)
+// pin 6 - LCD chip select (CS/CE)
+// pin 7 - LCD reset (RST)
+
+Adafruit_PCD8544 display = Adafruit_PCD8544(3, 4, 5, 6, 7);
+
 unsigned char readCard[4];
 
 // TAGS
-unsigned char TAG_MAKERBOT[4] =  {0x16,0x54,0x75,0x65};
-unsigned char TAG_ULTIMAKER[4] = {0x93,0xC2,0xDE,0xC7};
+const char TAG_MAKERBOT[4] =  {0x16,0x54,0x75,0x65};
+const char TAG_ULTIMAKER[4] = {0x93,0xC2,0xDE,0xC7};
 
-//Last times
-
-unsigned int Last_Makerbot = 0;
-unsigned int Last_Ultimaker = 0;
-
-//ON-OFF
-
-unsigned char On_Makerbot = 0;
-unsigned char On_Ultimaker = 0;
-
-
-//AUX
-
-unsigned int delta;
+Impressora Makerbot = Impressora(&display, TAG_MAKERBOT, "MAKERBOT        ");
+Impressora Ultimaker = Impressora(&display, TAG_ULTIMAKER, "ULTIMAKER ");
 
 void setup() {
   Serial.begin(9600);		// Initialize serial communications with the PC
   while (!Serial);		// Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
   SPI.begin();			// Init SPI bus
   mfrc522.PCD_Init();		// Init MFRC522
+  
+  display.begin();
+  display.setContrast(35); //Ajusta o contraste do display
+  display.clearDisplay();   //Apaga o buffer e o display
+  display.setTextSize(1);  //Seta o tamanho do texto
+  display.setTextColor(BLACK); //Seta a cor do texto
+  display.setCursor(0,0);  //Seta a posição do cursor
+  display.println(F("   Sistema"));  
+  display.println(F(" Inicializado"));
+  display.println(F("     BSB"));
+  display.println(F("     FAB"));
+  display.println(F("     LAB"));
+  display.display();
+  delay(500);
   Serial.println(F("Sistema Inicializado"));
 }
 
@@ -56,48 +70,12 @@ int getID() {
 }
 
 
-unsigned int compareUUID(unsigned char* readTag,unsigned char* tagToCompare)
-{
-  unsigned int sumUUID = 0;
-  
-  for (int i = 0; i < 4; i++)
-  {
-   sumUUID+= readTag[i] - tagToCompare[i]; 
-  }  
-  return sumUUID;
-}
-
 
 void loop() {
   while (!getID()); //the program will not go further while you not get a successful read
+  Serial.println(F("Tag Lida"));
   
-  if (compareUUID(readCard,TAG_MAKERBOT) == 0)
-  {
-    Serial.println(F("MAKERBOT"));
-    
-    if (!On_Makerbot)
-    {
-      On_Makerbot = 1;
-      Serial.println(F("LIGANDO"));
-      Last_Makerbot = now();
-    }
-    else
-    {
-      On_Makerbot = 0;
-      delta = now() - Last_Makerbot;
-      Serial.println(F("DESLIGANDO"));
-      Serial.print(F("TEMPO LIGADO: "));
-      Serial.print((day(delta)-1)*24 + hour(delta));
-      Serial.print("h");
-      Serial.print(minute(delta));
-      Serial.print("m");
-      Serial.print(second(delta));
-      Serial.print("s");
-    }
-    
-  }
-  if (compareUUID(readCard,TAG_ULTIMAKER) == 0)
-  {
-    Serial.println(F("ULTIMAKER"));
-  }
+  Makerbot.Check_tag(readCard);
+  Ultimaker.Check_tag(readCard);
+  
 }
