@@ -5,10 +5,19 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
+#include "SoftwareSerial.h"
+#include "Adafruit_Thermal.h"
+#include "fablogo.h"
+
 #include "impressora.h"
+
+int printer_RX_Pin = A4;  // This is the green wire
+int printer_TX_Pin = A5;  // This is the yellow wire
+Adafruit_Thermal printer(printer_RX_Pin, printer_TX_Pin);
 
 #define RST_PIN		9		// 
 #define SS_PIN		10		//
+
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);	// Create MFRC522 instance
 
@@ -26,14 +35,18 @@ unsigned char readCard[4];
 const char TAG_MAKERBOT[4] =  {0x16,0x54,0x75,0x65};
 const char TAG_ULTIMAKER[4] = {0x93,0xC2,0xDE,0xC7};
 
-Impressora Makerbot = Impressora(&display, TAG_MAKERBOT, "MAKERBOT        ");
-Impressora Ultimaker = Impressora(&display, TAG_ULTIMAKER, "ULTIMAKER ");
+Impressora Makerbot = Impressora(&display, TAG_MAKERBOT, "MAKERBOT        ",&printer);
+Impressora Ultimaker = Impressora(&display, TAG_ULTIMAKER, "ULTIMAKER ",&printer);
 
 void setup() {
   Serial.begin(9600);		// Initialize serial communications with the PC
   while (!Serial);		// Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
   SPI.begin();			// Init SPI bus
   mfrc522.PCD_Init();		// Init MFRC522
+  
+  pinMode(A6,OUTPUT);
+  pinMode(A7,OUTPUT);
+  
   
   display.begin();
   display.setContrast(35); //Ajusta o contraste do display
@@ -47,8 +60,35 @@ void setup() {
   display.println(F("     FAB"));
   display.println(F("     LAB"));
   display.display();
-  delay(500);
+  
+  
   Serial.println(F("Sistema Inicializado"));
+  
+  printer.begin(50);
+  delay(100);
+  
+}
+
+
+void Beep()
+{
+  digitalWrite(A7,LOW);
+  digitalWrite(A6,HIGH);
+  delay(200);
+  digitalWrite(A7,LOW);
+  digitalWrite(A6,LOW);
+  delay(200);
+  digitalWrite(A7,LOW);
+  digitalWrite(A6,HIGH);
+  delay(200);
+  digitalWrite(A7,LOW);
+  digitalWrite(A6,LOW);
+  delay(200);
+  digitalWrite(A7,LOW);
+  digitalWrite(A6,HIGH);
+  delay(200);
+  digitalWrite(A7,LOW);
+  digitalWrite(A6,LOW);
 }
 
 int getID() {
@@ -74,7 +114,7 @@ int getID() {
 void loop() {
   while (!getID()); //the program will not go further while you not get a successful read
   Serial.println(F("Tag Lida"));
-  
+  Beep();
   Makerbot.Check_tag(readCard);
   Ultimaker.Check_tag(readCard);
   
